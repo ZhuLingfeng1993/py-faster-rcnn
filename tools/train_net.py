@@ -97,9 +97,12 @@ if __name__ == '__main__':
         np.random.seed(cfg.RNG_SEED)
         caffe.set_random_seed(cfg.RNG_SEED)
 
-    # set up caffe
-    caffe.set_mode_gpu()
-    caffe.set_device(args.gpu_id)
+    if cfg.USE_GPU_IN_CAFFE == True:
+        # set up caffe
+        caffe.set_mode_gpu()
+        caffe.set_device(args.gpu_id)
+    else:
+        caffe.set_mode_cpu()
 
     imdb, roidb = combined_roidb(args.imdb_name)
     print '{:d} roidb entries'.format(len(roidb))
