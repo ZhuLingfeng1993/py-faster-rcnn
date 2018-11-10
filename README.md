@@ -1,4 +1,4 @@
-# py-faster-rcnn has been deprecated. Please see [Detectron](https://github.com/facebookresearch/Detectron), which includes an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870).
+# 	py-faster-rcnn has been deprecated. Please see [Detectron](https://github.com/facebookresearch/Detectron), which includes an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870).
 
 ### Disclaimer
 
@@ -154,12 +154,14 @@ https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
 
     [Can't make test! fatal error: caffe/vision_layers.hpp: No such file or directory #129](https://github.com/rbgirshick/py-faster-rcnn/issues/129)
 
-    报错:
 
+
+    报错:
+    
     ```
     src/caffe/test/test_roi_pooling_layer.cpp:28:26: error: ‘GPUDevice’ was not declared in this scope
     ```
-
+    
      解决: 应该是只写了对GPU版实现的测试, 没有写对CPU版的测试, 所以报错, 把该文件删除再runtest, 通过
 
 5. Download pre-computed Faster R-CNN detectors
@@ -170,6 +172,70 @@ https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
 
     This will populate the `$FRCN_ROOT/data` folder with `faster_rcnn_models`. See `data/README.md` for details.
     These models were trained on VOC 2007 trainval.
+    
+#### 训练时报错
+
+##### smooth_L1_loss_layer Not Implemented Yet
+
+##### roi_pooling_layer Not Implemented Yet
+
+https://github.com/rbgirshick/caffe-fast-rcnn/pull/17
+
+#### 训练时solving报错
+
+##### 错误1
+
+报错:
+
+```shell
+File "/home/zhulingfeng/Projects/py-faster-rcnn/tools/../lib/rpn/proposal_target_layer.py", line 127, in _get_bbox_regression_labels
+    bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
+TypeError: slice indices must be integers or None or have an __index__ method
+```
+
+```shell
+  File "/home/zhulingfeng/Projects/py-faster-rcnn/tools/../lib/rpn/proposal_target_layer.py", line 168, in _sample_rois
+    fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
+  File "mtrand.pyx", line 1192, in mtrand.RandomState.choice
+TypeError: 'numpy.float64' object cannot be interpreted as an index
+```
+
+解决:
+
+其实就是数据类型问题, 需要整数类型
+
+https://github.com/rbgirshick/py-faster-rcnn/issues/480#issuecomment-305742882
+
+注意根据实际情况仔细修改:
+
+```python
+bbox_targets[ind, start:end] = bbox_target_data[ind, 1:] 
+```
+
+修改为:
+
+```python
+start=int(start)
+end=int(end)
+bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
+
+fg_rois_per_this_image=int(fg_rois_per_this_image)
+```
+
+```python
+        fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
+```
+修改为:
+```python
+        fg_rois_per_this_image=int(fg_rois_per_this_image)
+        fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
+```
+
+##### Check failed: *ptr host allocation of size 172800000 failed*
+
+https://github.com/rbgirshick/py-faster-rcnn/issues/369#issuecomment-366471649
+
+##### 其实就是内存不够
 
 ### Demo
 

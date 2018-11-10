@@ -33,6 +33,10 @@ class pascal_voc(imdb):
                          'cow', 'diningtable', 'dog', 'horse',
                          'motorbike', 'person', 'pottedplant',
                          'sheep', 'sofa', 'train', 'tvmonitor')
+
+        ''''self._classes = ('__background__', # always index 0
+                         'car', 'bicycle', 'motorcycle', 'person',
+                         'roadblock', 'speedbump')'''
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
@@ -185,16 +189,24 @@ class pascal_voc(imdb):
         filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
         tree = ET.parse(filename)
         objs = tree.findall('object')
+        #print(filename)
         if not self.config['use_diff']:
             # Exclude the samples labeled as difficult
-            non_diff_objs = [
-                obj for obj in objs if int(obj.find('difficult').text) == 0]
+            non_diff_objs = []
+            for obj in objs:
+                diff_obj = obj.find('Difficult')
+                if diff_obj==None:
+                    diff_obj = obj.find('difficult')
+                if int(diff_obj.text)==0:
+                    non_diff_objs.append(obj)
+            #non_diff_objs = [
+                #obj for obj in objs if int(obj.find('Difficult').text) == 0]
             # if len(non_diff_objs) != len(objs):
             #     print 'Removed {} difficult objects'.format(
             #         len(objs) - len(non_diff_objs))
             objs = non_diff_objs
         num_objs = len(objs)
-
+        #print("num_objs={}".format(num_objs))
         boxes = np.zeros((num_objs, 4), dtype=np.uint16)
         gt_classes = np.zeros((num_objs), dtype=np.int32)
         overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
