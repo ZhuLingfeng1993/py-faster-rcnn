@@ -74,6 +74,12 @@ If you find Faster R-CNN useful in your research, please consider citing:
 2. For training Fast R-CNN with VGG16, you'll need a K40 (~11G of memory)
 3. For training the end-to-end version of Faster R-CNN with VGG16, 3G of GPU memory is sufficient (using CUDNN)
 
+### Installation supporting cpu-only
+
+https://github.com/rbgirshick/py-faster-rcnn/pull/697/files
+
+https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
+
 ### Installation (sufficient for the demo)
 
 1. Clone the Faster R-CNN repository
@@ -113,11 +119,48 @@ If you find Faster R-CNN useful in your research, please consider citing:
     cd $FRCN_ROOT/caffe-fast-rcnn
     # Now follow the Caffe installation instructions here:
     #   http://caffe.berkeleyvision.org/installation.html
-
+    
     # If you're experienced with Caffe and have all of the requirements installed
     # and your Makefile.config in place, then simply do:
     make -j8 && make pycaffe
     ```
+
+    报错:
+
+    ```shell
+    /usr/bin/ld: cannot find -lhdf5_hl
+    /usr/bin/ld: cannot find -lhdf5
+    ```
+
+    [解决](https://github.com/rbgirshick/py-faster-rcnn/issues/474):
+
+    f you are on Ubuntu, here is the solution:
+
+    Go to `/usr/lib/x86_64-linux-gnu` and make two symbol links:
+
+    ```
+    sudo ln -s libhdf5_serial.so libhdf5.so
+    sudo ln -s libhdf5_serial_hl.so libhdf5_hl.so
+    ```
+
+    Then, open your `Makefile.conf`, modify `INCLUDE_DIRS` and `LIBRARY_DIRS`:
+
+    ```
+    INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include /usr/include/hdf5/serial/
+    LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu/hdf5/serial/
+    ```
+
+    #### make runtest 报错
+
+    [Can't make test! fatal error: caffe/vision_layers.hpp: No such file or directory #129](https://github.com/rbgirshick/py-faster-rcnn/issues/129)
+
+    报错:
+
+    ```
+    src/caffe/test/test_roi_pooling_layer.cpp:28:26: error: ‘GPUDevice’ was not declared in this scope
+    ```
+
+     解决: 应该是只写了对GPU版实现的测试, 没有写对CPU版的测试, 所以报错, 把该文件删除再runtest, 通过
 
 5. Download pre-computed Faster R-CNN detectors
     ```Shell
@@ -164,10 +207,11 @@ The demo performs detection using a VGG16 network trained for detection on PASCA
 
 3. It should have this basic structure
 
-	```Shell
-  	$VOCdevkit/                           # development kit
-  	$VOCdevkit/VOCcode/                   # VOC utility code
-  	$VOCdevkit/VOC2007                    # image sets, annotations, etc.
+  ```Shell
+    	$VOCdevkit/                           # development kit
+    	$VOCdevkit/VOCcode/                   # VOC utility code
+    	$VOCdevkit/VOC2007                    # image sets, annotations, etc.
+  ```
   	# ... and several other directories ...
   	```
 
@@ -176,7 +220,7 @@ The demo performs detection using a VGG16 network trained for detection on PASCA
 	```Shell
     cd $FRCN_ROOT/data
     ln -s $VOCdevkit VOCdevkit2007
-    ```
+   ```
     Using symlinks is a good idea because you will likely want to share the same PASCAL dataset installation between multiple projects.
 5. [Optional] follow similar steps to get PASCAL VOC 2010 and 2012
 6. [Optional] If you want to use COCO, please see some notes under `data/README.md`
