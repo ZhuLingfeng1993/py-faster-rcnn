@@ -64,7 +64,8 @@ If you find Faster R-CNN useful in your research, please consider citing:
   ```
 
   You can download my [Makefile.config](https://dl.dropboxusercontent.com/s/6joa55k64xo2h68/Makefile.config?dl=0) for reference.
-2. Python packages you might not have: `cython`, `python-opencv`, `easydict`
+
+2. Python packages you might not have: `cython`, `python-opencv`, `easydict`, `python-tk`.
 3. [Optional] MATLAB is required for **official** PASCAL VOC evaluation only. The code now includes unofficial Python evaluation code.
 
 ### Requirements: hardware
@@ -91,13 +92,23 @@ If you find Faster R-CNN useful in your research, please consider citing:
     ```
     **Note 2:** The `caffe-fast-rcnn` submodule needs to be on the `faster-rcnn` branch (or equivalent detached state). This will happen automatically *if you followed step 1 instructions*.
 
-3. Build the Cython modules
+3. Build the Cython modules.
+
+    **Note:** If you are not using GPU, then change `__C.USE_GPU_NMS` to `False` in file `$FRCN_ROOT/lib/fast_rcnn/config.py`.
+
+    Then run:
     ```Shell
     cd $FRCN_ROOT/lib
     make
     ```
 
 4. Build Caffe and pycaffe
+
+    **Note:** If you are not using GPU, then remember to configure the `Makefile.config` file as expected.
+    Uncomment `CPU_ONLY := 1` line, comment `USE_CUDNN := 1` line and whatever necessary.
+    Also, change `solver_mode: GPU` to `CPU` in file `$FRCN_ROOT/caffe-fast-rcnn/examples/mnist/lenet_solver.prototxt`.
+
+    Then run:
     ```Shell
     cd $FRCN_ROOT/caffe-fast-rcnn
     # Now follow the Caffe installation instructions here:
@@ -121,11 +132,17 @@ If you find Faster R-CNN useful in your research, please consider citing:
 
 *After successfully completing [basic installation](#installation-sufficient-for-the-demo)*, you'll be ready to run the demo.
 
-To run the demo
+To run the demo with GPU
 ```Shell
 cd $FRCN_ROOT
 ./tools/demo.py
 ```
+or without GPU
+```Shell
+cd $FRCN_ROOT
+./tools/demo.py --cpu
+```
+
 The demo performs detection using a VGG16 network trained for detection on PASCAL VOC 2007.
 
 ### Beyond the demo: installation for training and testing models
