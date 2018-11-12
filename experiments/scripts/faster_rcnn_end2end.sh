@@ -27,7 +27,7 @@ case $DATASET in
     TRAIN_IMDB="voc_2007_train"
     TEST_IMDB="voc_2007_val"
     PT_DIR="pascal_voc"
-    ITERS=10
+    ITERS=3
     ;;
   coco)
     # This is a very long and slow training schedule
