@@ -1,4 +1,4 @@
-# 	py-faster-rcnn has been deprecated. Please see [Detectron](https://github.com/facebookresearch/Detectron), which includes an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870).
+# py-faster-rcnn has been deprecated. Please see [Detectron](https://github.com/facebookresearch/Detectron), which includes an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870).
 
 ### Disclaimer
 
@@ -74,12 +74,6 @@ If you find Faster R-CNN useful in your research, please consider citing:
 2. For training Fast R-CNN with VGG16, you'll need a K40 (~11G of memory)
 3. For training the end-to-end version of Faster R-CNN with VGG16, 3G of GPU memory is sufficient (using CUDNN)
 
-### Installation supporting cpu-only
-
-https://github.com/rbgirshick/py-faster-rcnn/pull/697/files
-
-https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
-
 ### Installation (sufficient for the demo)
 
 1. Clone the Faster R-CNN repository
@@ -100,7 +94,7 @@ https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
 
 3. Build the Cython modules.
 
-    **Note:** If you are not using GPU, then change `__C.USE_GPU_NMS` to `False` in file `$FRCN_ROOT/lib/fast_rcnn/config.py`.
+    **Note:** If you are not using GPU, then change `__C.USE_GPU_NMS` and `__C.USE_GPU_IN_CAFFE` to `False` in file `$FRCN_ROOT/lib/fast_rcnn/config.py`.
 
     Then run:
     ```Shell
@@ -124,47 +118,7 @@ https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
     # and your Makefile.config in place, then simply do:
     make -j8 && make pycaffe
     ```
-
-    报错:
-
-    ```shell
-    /usr/bin/ld: cannot find -lhdf5_hl
-    /usr/bin/ld: cannot find -lhdf5
-    ```
-
-    [解决](https://github.com/rbgirshick/py-faster-rcnn/issues/474):
-
-    f you are on Ubuntu, here is the solution:
-
-    Go to `/usr/lib/x86_64-linux-gnu` and make two symbol links:
-
-    ```
-    sudo ln -s libhdf5_serial.so libhdf5.so
-    sudo ln -s libhdf5_serial_hl.so libhdf5_hl.so
-    ```
-
-    Then, open your `Makefile.conf`, modify `INCLUDE_DIRS` and `LIBRARY_DIRS`:
-
-    ```
-    INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include /usr/include/hdf5/serial/
-    LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu/hdf5/serial/
-    ```
-
-    #### make runtest 报错
-
-    [Can't make test! fatal error: caffe/vision_layers.hpp: No such file or directory #129](https://github.com/rbgirshick/py-faster-rcnn/issues/129)
-
-
-
-    报错:
-    
-    ```
-    src/caffe/test/test_roi_pooling_layer.cpp:28:26: error: ‘GPUDevice’ was not declared in this scope
-    ```
-    
-     解决: 应该是只写了对GPU版实现的测试, 没有写对CPU版的测试, 所以报错, 把该文件删除再runtest, 通过
-
-5. Download pre-computed Faster R-CNN detectors
+3. Download pre-computed Faster R-CNN detectors
     ```Shell
     cd $FRCN_ROOT
     ./data/scripts/fetch_faster_rcnn_models.sh
@@ -172,12 +126,66 @@ https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
 
     This will populate the `$FRCN_ROOT/data` folder with `faster_rcnn_models`. See `data/README.md` for details.
     These models were trained on VOC 2007 trainval.
-    
+### Installation supporting cpu-only
+
+#### 参考下面,修改相应文件, 然后同正常安装
+
+https://github.com/rbgirshick/py-faster-rcnn/pull/697/files
+
+https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
+
+#### 解决make时的报错
+报错:
+
+```shell
+/usr/bin/ld: cannot find -lhdf5_hl
+/usr/bin/ld: cannot find -lhdf5
+```
+
+[解决](https://github.com/rbgirshick/py-faster-rcnn/issues/474):
+
+f you are on Ubuntu, here is the solution:
+
+Go to `/usr/lib/x86_64-linux-gnu` and make two symbol links:
+
+```
+sudo ln -s libhdf5_serial.so libhdf5.so
+sudo ln -s libhdf5_serial_hl.so libhdf5_hl.so
+```
+
+Then, open your `Makefile.conf`, modify `INCLUDE_DIRS` and `LIBRARY_DIRS`:
+
+```
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include /usr/include/hdf5/serial/
+LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu/hdf5/serial/
+```
+
+#### make runtest 报错
+
+报错:
+
+```shell
+Can't make test! fatal error: caffe/vision_layers.hpp: No such file or directory 
+```
+解决: https://github.com/rbgirshick/py-faster-rcnn/issues/129
+
+报错:
+
+```
+src/caffe/test/test_roi_pooling_layer.cpp:28:26: error: ‘GPUDevice’ was not declared in this scope
+```
+
+ 解决: 应该是只写了对GPU版实现的测试, 没有写对CPU版的测试, 所以报错, 把该文件删除再runtest, 通过
+
 #### 训练时报错
 
-##### smooth_L1_loss_layer Not Implemented Yet
+报错:
 
-##### roi_pooling_layer Not Implemented Yet
+`smooth_L1_loss_layer Not Implemented Yet`
+
+`roi_pooling_layer Not Implemented Yet`
+
+解决:
 
 https://github.com/rbgirshick/caffe-fast-rcnn/pull/17
 
@@ -235,7 +243,7 @@ fg_rois_per_this_image=int(fg_rois_per_this_image)
 
 https://github.com/rbgirshick/py-faster-rcnn/issues/369#issuecomment-366471649
 
-##### 其实就是内存不够
+其实就是内存不够
 
 ### Demo
 
