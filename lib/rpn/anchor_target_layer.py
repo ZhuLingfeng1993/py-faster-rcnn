@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Faster R-CNN
 # Copyright (c) 2015 Microsoft
@@ -65,11 +66,18 @@ class AnchorTargetLayer(caffe.Layer):
     def forward(self, bottom, top):
         # Algorithm:
         #
+        # Step. Generate proposals from bbox deltas and shifted anchors
         # for each (H, W) location i
         #   generate 9 anchor boxes centered on cell i
         #   apply predicted bbox deltas at cell i to each of the 9 anchors
-        # filter out-of-image anchors
-        # measure GT overlap
+        # Step. filter out-of-image anchors
+        # Step. Measure GT overlap and assign anchors to gt
+        # Step. Produces anchor classification labels.
+        # Step. subsample labels if we have too many
+        # Step. Produce bounding-box regression targets
+        # Step. map up to original set of anchors
+        # Step. Resize and return the top blobs (-> labels top,
+        # bbox_targets top, bbox_inside_weights top, bbox_outside_weights top)
 
         assert bottom[0].data.shape[0] == 1, \
             'Only single item batches are supported'
@@ -89,12 +97,15 @@ class AnchorTargetLayer(caffe.Layer):
             print 'rpn: gt_boxes.shape', gt_boxes.shape
             print 'rpn: gt_boxes', gt_boxes
 
-        # 1. Generate proposals from bbox deltas and shifted anchors
+        # Step. Generate proposals from bbox deltas and shifted anchors
+        # Enumerate all shifts
         shift_x = np.arange(0, width) * self._feat_stride
         shift_y = np.arange(0, height) * self._feat_stride
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
                             shift_x.ravel(), shift_y.ravel())).transpose()
+        # Enumerate all shifted anchors:
+        #
         # add A anchors (1, A, 4) to
         # cell K shifts (K, 1, 4) to get
         # shift anchors (K, A, 4)
@@ -106,7 +117,7 @@ class AnchorTargetLayer(caffe.Layer):
         all_anchors = all_anchors.reshape((K * A, 4))
         total_anchors = int(K * A)
 
-        # only keep anchors inside the image
+        # Step. filter out-of-image anchors
         inds_inside = np.where(
             (all_anchors[:, 0] >= -self._allowed_border) &
             (all_anchors[:, 1] >= -self._allowed_border) &
@@ -127,19 +138,28 @@ class AnchorTargetLayer(caffe.Layer):
         labels = np.empty((len(inds_inside), ), dtype=np.float32)
         labels.fill(-1)
 
+        # Step. Measure GT overlap and assign anchors to gt
         # overlaps between the anchors and the gt boxes
-        # overlaps (ex, gt)
+        # overlaps (ex, gt) KxM (Kx4,Mx5) M:num_gt_boxes
         overlaps = bbox_overlaps(
             np.ascontiguousarray(anchors, dtype=np.float),
             np.ascontiguousarray(gt_boxes, dtype=np.float))
         argmax_overlaps = overlaps.argmax(axis=1)
-        max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
+        max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps] # Kx1
+        # 1XM, each of M is index of anchor which has max overlap with a gt
         gt_argmax_overlaps = overlaps.argmax(axis=0)
         gt_max_overlaps = overlaps[gt_argmax_overlaps,
-                                   np.arange(overlaps.shape[1])]
+                                   np.arange(overlaps.shape[1])] # 1xM,
+        # 1xMM(MM>=M)
+        # maybe many anchors have the same max overlap with gt, and can't get from
+        # overlaps.argmax(axis=0) ,
         gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
 
+        # Step. Produces anchor classification labels.
+        # clobber means punish
         if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
+            # 即使gt_max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP,
+            # 后面的labels[gt_argmax_overlaps] = 1 也会将其设为positive
             # assign bg labels first so that positive labels can clobber them
             labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
@@ -149,10 +169,15 @@ class AnchorTargetLayer(caffe.Layer):
         # fg label: above threshold IOU
         labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
 
+        # cfg.TRAIN.RPN_CLOBBER_POSITIVE则涉及到一种情况，
+        # 即如果最大重叠率小于cfg.TRAIN.RPN_NEGATIVE_OVERLAP=0.3,则到底正还是负
         if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
+            # 如果gt_max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP,
+            # 那么这一步会将它们设置成negetive
             # assign bg labels last so that negative labels can clobber positives
             labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
+        # Step. subsample labels if we have too many
         # subsample positive labels if we have too many
         num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
         fg_inds = np.where(labels == 1)[0]
@@ -171,9 +196,11 @@ class AnchorTargetLayer(caffe.Layer):
             #print "was %s inds, disabling %s, now %s inds" % (
                 #len(bg_inds), len(disable_inds), np.sum(labels == 0))
 
+        # Step. Produce bounding-box regression targets
         bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
         bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
 
+        # Step. Assign bounding-box loss weights
         bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
         bbox_inside_weights[labels == 1, :] = np.array(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
 
@@ -204,7 +231,7 @@ class AnchorTargetLayer(caffe.Layer):
             print 'stdevs:'
             print stds
 
-        # map up to original set of anchors
+        # Step. map up to original set of anchors
         labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
         bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
         bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
@@ -220,8 +247,11 @@ class AnchorTargetLayer(caffe.Layer):
             print 'rpn: num_positive avg', self._fg_sum / self._count
             print 'rpn: num_negative avg', self._bg_sum / self._count
 
+        # Step. Resize and return the top blobs (-> labels top,
+        # bbox_targets top, bbox_inside_weights top, bbox_outside_weights top)
         # labels
         labels = labels.reshape((1, height, width, A)).transpose(0, 3, 1, 2)
+        # the shape that is reshaped to is very strange?????
         labels = labels.reshape((1, 1, A * height, width))
         top[0].reshape(*labels.shape)
         top[0].data[...] = labels
@@ -259,7 +289,7 @@ class AnchorTargetLayer(caffe.Layer):
 
 def _unmap(data, count, inds, fill=0):
     """ Unmap a subset of item (data) back to the original set of items (of
-    size count) """
+    size count) according to the inds and fill other place with 'fill'"""
     if len(data.shape) == 1:
         ret = np.empty((count, ), dtype=np.float32)
         ret.fill(fill)

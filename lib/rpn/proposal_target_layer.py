@@ -15,6 +15,7 @@ from utils.cython_bbox import bbox_overlaps
 
 DEBUG = False
 
+
 class ProposalTargetLayer(caffe.Layer):
     """
     Assign object detection proposals to ground-truth targets. Produces proposal
@@ -37,8 +38,21 @@ class ProposalTargetLayer(caffe.Layer):
         top[4].reshape(1, self._num_classes * 4)
 
     def forward(self, bottom, top):
-        # Proposal ROIs (0, x1, y1, x2, y2) coming from RPN
+        # Algorithm:
+        #
+        # Step. Measure GT overlap and assign proposals to gt
+        # Step. Produces proposals classification labels.
+        # Step. Subsample labels if we have too many
+        # Step. Produce bounding-box regression targets with label infomation
+        # Step. Resize and drop label information to get new bounding-box
+        # regression targets
+        # Step. Return the top blobs
+
+
+        # Proposal ROIs (0, x1, y1, x2, y2) coming from RPN,
         # (i.e., rpn.proposal_layer.ProposalLayer), or any other source
+        # The first element 0 represents the index of image batch, check source code
+        # for detail.
         all_rois = bottom[0].data
         # GT boxes (x1, y1, x2, y2, label)
         # TODO(rbg): it's annoying that sometimes I have extra info before
@@ -53,7 +67,7 @@ class ProposalTargetLayer(caffe.Layer):
 
         # Sanity check: single batch only
         assert np.all(all_rois[:, 0] == 0), \
-                'Only single item batches are supported'
+            'Only single item batches are supported'
 
         num_images = 1
         rois_per_image = cfg.TRAIN.BATCH_SIZE / num_images
@@ -106,14 +120,20 @@ class ProposalTargetLayer(caffe.Layer):
 
 def _get_bbox_regression_labels(bbox_target_data, num_classes):
     """Bounding-box regression targets (bbox_target_data) are stored in a
-    compact form N x (class, tx, ty, tw, th)
+    compact form N x (class, tx, ty, tw, th), N is number of targets
 
-    This function expands those targets into the 4-of-4*K representation used
+    This function expands those targets into the 4-of-4*K(should be M-of-4*N,
+    M is the number of classes of all original targets)
+    (by putting target of the same class in the same row one by one, so we
+    drop the class infomation)
+    representation used
     by the network (i.e. only one class has non-zero targets).
 
+
+
     Returns:
-        bbox_target (ndarray): N x 4K blob of regression targets
-        bbox_inside_weights (ndarray): N x 4K blob of loss weights
+        bbox_target (ndarray): N x 4K(should be Mx4N) blob of regression targets
+        bbox_inside_weights (ndarray): N x 4K(should be Mx4N) blob of loss weights
     """
 
     clss = bbox_target_data[:, 0]
@@ -124,8 +144,8 @@ def _get_bbox_regression_labels(bbox_target_data, num_classes):
         cls = clss[ind]
         start = 4 * cls
         end = start + 4
-        start=int(start)
-        end=int(end)
+        start = int(start)
+        end = int(end)
         bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
         bbox_inside_weights[ind, start:end] = cfg.TRAIN.BBOX_INSIDE_WEIGHTS
     return bbox_targets, bbox_inside_weights
@@ -142,22 +162,29 @@ def _compute_targets(ex_rois, gt_rois, labels):
     if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
         # Optionally normalize targets by a precomputed mean and stdev
         targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
-                / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
+                   / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
     return np.hstack(
-            (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
+        (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
+
 
 def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_classes):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
-    # overlaps: (rois x gt_boxes)
+    # Step. measure GT overlap and assign proposals to gt
+    #
+    # overlaps: (rois, gt_boxes)
     overlaps = bbox_overlaps(
         np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
         np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
+    # gt_assignment, max_overlaps, labels: (rois,)
     gt_assignment = overlaps.argmax(axis=1)
     max_overlaps = overlaps.max(axis=1)
     labels = gt_boxes[gt_assignment, 4]
 
+    # Step. Produces proposals classification labels.
+    # Step. Subsample labels if we have too many
+    #
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
     # Guard against the case when an image has fewer than fg_rois_per_image
@@ -165,7 +192,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     fg_rois_per_this_image = min(fg_rois_per_image, fg_inds.size)
     # Sample foreground regions without replacement
     if fg_inds.size > 0:
-        fg_rois_per_this_image=int(fg_rois_per_this_image)
+        fg_rois_per_this_image = int(fg_rois_per_this_image)
         fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
 
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
@@ -187,9 +214,12 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     labels[fg_rois_per_this_image:] = 0
     rois = all_rois[keep_inds]
 
+    # Step. Produce bounding-box regression targets
     bbox_target_data = _compute_targets(
         rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
 
+    # Step. Resize and drop label information to get new bounding-box
+    # regression targets
     bbox_targets, bbox_inside_weights = \
         _get_bbox_regression_labels(bbox_target_data, num_classes)
 

@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Fast R-CNN
 # Copyright (c) 2015 Microsoft
@@ -20,6 +21,11 @@ from voc_eval import voc_eval
 from fast_rcnn.config import cfg
 
 class pascal_voc(imdb):
+    """
+    Subclass of imdb.
+    主要用来组织输入的图片数据，存储图片的相关信息，但并不存储图片
+    """
+
     def __init__(self, image_set, year, devkit_path=None):
         imdb.__init__(self, 'voc_' + year + '_' + image_set)
         self._year = year
@@ -189,7 +195,7 @@ class pascal_voc(imdb):
         filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
         tree = ET.parse(filename)
         objs = tree.findall('object')
-        #print(filename)
+        # print(filename)
         if not self.config['use_diff']:
             # Exclude the samples labeled as difficult
             non_diff_objs = []
@@ -199,14 +205,14 @@ class pascal_voc(imdb):
                     diff_obj = obj.find('difficult')
                 if int(diff_obj.text)==0:
                     non_diff_objs.append(obj)
-            #non_diff_objs = [
-                #obj for obj in objs if int(obj.find('Difficult').text) == 0]
+            # non_diff_objs = [
+                # obj for obj in objs if int(obj.find('Difficult').text) == 0]
             # if len(non_diff_objs) != len(objs):
             #     print 'Removed {} difficult objects'.format(
             #         len(objs) - len(non_diff_objs))
             objs = non_diff_objs
         num_objs = len(objs)
-        #print("num_objs={}".format(num_objs))
+        # print("num_objs={}".format(num_objs))
         boxes = np.zeros((num_objs, 4), dtype=np.uint16)
         gt_classes = np.zeros((num_objs), dtype=np.int32)
         overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
@@ -229,11 +235,11 @@ class pascal_voc(imdb):
 
         overlaps = scipy.sparse.csr_matrix(overlaps)
 
-        return {'boxes' : boxes,
-                'gt_classes': gt_classes,
-                'gt_overlaps' : overlaps,
-                'flipped' : False,
-                'seg_areas' : seg_areas}
+        return {'boxes' : boxes,   # boxes of corresponding objects  in an image, size:Nx4 ,N:num_objs
+                'gt_classes': gt_classes,      # ground truth of each object, size:N
+                'gt_overlaps' : overlaps,      # ?, size:NxC, C:num_classes
+                'flipped' : False,             # whether the image is flipped
+                'seg_areas' : seg_areas}       # area of box, size:N
 
     def _get_comp_id(self):
         comp_id = (self._comp_id + '_' + self._salt if self.config['use_salt']

@@ -37,6 +37,7 @@ class RoIDataLayer(caffe.Layer):
             inds = np.reshape(inds[row_perm, :], (-1,))
             self._perm = inds
         else:
+            # _perm is only random indexs of roidb
             self._perm = np.random.permutation(np.arange(len(self._roidb)))
         self._cur = 0
 

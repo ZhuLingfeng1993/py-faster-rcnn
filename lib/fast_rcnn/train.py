@@ -40,7 +40,8 @@ class SolverWrapper(object):
             self.bbox_means, self.bbox_stds = \
                     rdl_roidb.add_bbox_regression_targets(roidb)
             print 'done'
-
+        # initialize solver
+        # run in caffe, when need python layers, it will run python code
         self.solver = caffe.SGDSolver(solver_prototxt)
         if pretrained_model is not None:
             print ('Loading pretrained model '
@@ -50,7 +51,7 @@ class SolverWrapper(object):
         self.solver_param = caffe_pb2.SolverParameter()
         with open(solver_prototxt, 'rt') as f:
             pb2.text_format.Merge(f.read(), self.solver_param)
-
+        # set roidb in input layer
         self.solver.net.layers[0].set_roidb(roidb)
 
     def snapshot(self):

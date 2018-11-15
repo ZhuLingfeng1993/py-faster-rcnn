@@ -14,7 +14,9 @@ import scipy.sparse
 from fast_rcnn.config import cfg
 
 class imdb(object):
-    """Image database."""
+    """Image database.
+    roidb is an field of imdb
+    """
 
     def __init__(self, name):
         self._name = name
@@ -52,6 +54,11 @@ class imdb(object):
         self._roidb_handler = val
 
     def set_proposal_method(self, method):
+        # eval is build in function, so can't debug
+        # it just compile the 'gt_roidb' method in pascal_voc.py and return the code object
+        # debug result:
+        # self: <datasets.pascal_voc.pascal_voc object at 0x7f665924ef10>
+        # method: <bound method pascal_voc.gt_roidb of <datasets.pascal_voc.pascal_voc object at 0x7f665924ef10>>
         method = eval('self.' + method + '_roidb')
         self.roidb_handler = method
 
@@ -64,6 +71,7 @@ class imdb(object):
         #   flipped
         if self._roidb is not None:
             return self._roidb
+        # set roidb by run roidb_handler function
         self._roidb = self.roidb_handler()
         return self._roidb
 
@@ -103,6 +111,7 @@ class imdb(object):
         num_images = self.num_images
         widths = self._get_widths()
         for i in xrange(num_images):
+            # this line will set roidb by run gt_roidb function
             boxes = self.roidb[i]['boxes'].copy()
             oldx1 = boxes[:, 0].copy()
             oldx2 = boxes[:, 2].copy()

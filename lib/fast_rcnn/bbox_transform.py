@@ -38,7 +38,7 @@ def bbox_transform_inv(boxes, deltas):
     ctr_x = boxes[:, 0] + 0.5 * widths
     ctr_y = boxes[:, 1] + 0.5 * heights
 
-    dx = deltas[:, 0::4]
+    dx = deltas[:, 0::4] # [:, start=i : end=-1: step=4]
     dy = deltas[:, 1::4]
     dw = deltas[:, 2::4]
     dh = deltas[:, 3::4]
@@ -65,12 +65,12 @@ def clip_boxes(boxes, im_shape):
     Clip boxes to image boundaries.
     """
 
-    # x1 >= 0
+    # x1 >= 0, x1 < im_shape[1]
     boxes[:, 0::4] = np.maximum(np.minimum(boxes[:, 0::4], im_shape[1] - 1), 0)
-    # y1 >= 0
+    # y1 >= 0, y1 < im_shape[2]
     boxes[:, 1::4] = np.maximum(np.minimum(boxes[:, 1::4], im_shape[0] - 1), 0)
-    # x2 < im_shape[1]
+    # x2 < im_shape[1], x2 >= 0
     boxes[:, 2::4] = np.maximum(np.minimum(boxes[:, 2::4], im_shape[1] - 1), 0)
-    # y2 < im_shape[0]
+    # y2 < im_shape[0], y1 >= 0
     boxes[:, 3::4] = np.maximum(np.minimum(boxes[:, 3::4], im_shape[0] - 1), 0)
     return boxes
