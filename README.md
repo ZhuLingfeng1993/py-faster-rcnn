@@ -134,6 +134,8 @@ https://github.com/rbgirshick/py-faster-rcnn/pull/697/files
 
 https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
 
+另外: 修改train_net.py, test_net.py , demo里的gpu设置
+
 #### 解决make时的报错
 报错:
 
@@ -178,6 +180,8 @@ src/caffe/test/test_roi_pooling_layer.cpp:28:26: error: ‘GPUDevice’ was not 
  解决: 应该是只写了对GPU版实现的测试, 没有写对CPU版的测试, 所以报错, 把该文件删除再runtest, 通过
 
 #### 训练时报错
+
+**首先, 为了方便测试, 将数据数目, 参数设置成尽可能小, 加快程序运行速度**
 
 报错:
 
@@ -243,7 +247,7 @@ fg_rois_per_this_image=int(fg_rois_per_this_image)
 
 https://github.com/rbgirshick/py-faster-rcnn/issues/369#issuecomment-366471649
 
-其实就是内存不够
+其实就是内存不够, 换用ZF模型就ok
 
 ### Demo
 
