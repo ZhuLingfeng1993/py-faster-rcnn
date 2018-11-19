@@ -128,13 +128,19 @@ If you find Faster R-CNN useful in your research, please consider citing:
     These models were trained on VOC 2007 trainval.
 ### Installation supporting cpu-only
 
+### 配置pycharm
+
+为了方便查看代码, 使用pycharm 
+
+File-Settings-Project:xxx-Project Interpreter-Add-System Interpreter(如果有必要可以用虚拟环境)-python2-show paths for selected interpreter-删除原来的caffe python path-添加当前工程的caffe python path-添加lib
+
 #### 参考下面,修改相应文件, 然后同正常安装
 
 https://github.com/rbgirshick/py-faster-rcnn/pull/697/files
 
 https://github.com/rbgirshick/py-faster-rcnn/pull/698 (docker)
 
-另外: 修改train_net.py, test_net.py , demo里的gpu设置
+另外: 修改train_net.py, test_net.py , demo.py config.py里的gpu设置
 
 #### 解决make时的报错
 报错:
@@ -178,6 +184,8 @@ src/caffe/test/test_roi_pooling_layer.cpp:28:26: error: ‘GPUDevice’ was not 
 ```
 
  解决: 应该是只写了对GPU版实现的测试, 没有写对CPU版的测试, 所以报错, 把该文件删除再runtest, 通过
+
+#### 用demo进行前向传播测试
 
 #### 训练时报错
 

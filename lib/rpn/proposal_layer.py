@@ -45,6 +45,7 @@ class ProposalLayer(caffe.Layer):
             top[1].reshape(1, 1, 1, 1)
 
     def forward(self, bottom, top):
+        """
         # Algorithm:
         #
         # for each (H, W) location i
@@ -57,7 +58,7 @@ class ProposalLayer(caffe.Layer):
         # apply NMS with threshold 0.7 to remaining proposals
         # take after_nms_topN proposals after NMS
         # return the top proposals (-> RoIs top, scores top)
-
+        """
         assert bottom[0].data.shape[0] == 1, \
             'Only single item batches are supported'
 
