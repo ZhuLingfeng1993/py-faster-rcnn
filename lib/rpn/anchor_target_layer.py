@@ -78,7 +78,12 @@ class AnchorTargetLayer(caffe.Layer):
         # Step. Assign bounding-box loss weights
         # Step. Resize and return the top blobs (-> labels top,
         # bbox_targets top, bbox_inside_weights top, bbox_outside_weights top)
+
+        :param bottom: 'rpn_cls_score', 'gt_boxes', 'im_info', 'data'
+        :param top: refer to setup()
+        :return: none
         """
+
         assert bottom[0].data.shape[0] == 1, \
             'Only single item batches are supported'
 
@@ -173,7 +178,7 @@ class AnchorTargetLayer(caffe.Layer):
         # 即如果最大重叠率小于cfg.TRAIN.RPN_NEGATIVE_OVERLAP=0.3,则到底正还是负
         if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
             # 如果gt_max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP,
-            # 那么这一步会将它们设置成negetive
+            # 那么这一步会将它们设置成negative
             # assign bg labels last so that negative labels can clobber positives
             labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
@@ -202,9 +207,10 @@ class AnchorTargetLayer(caffe.Layer):
         bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
 
         # ###### Step. Assign bounding-box loss weights
+        # bbox_inside_weights
         bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
         bbox_inside_weights[labels == 1, :] = np.array(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
-
+        # bbox_outside_weights
         bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
         if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
             # uniform weighting of examples (given non-uniform sampling)

@@ -38,17 +38,20 @@ class ProposalTargetLayer(caffe.Layer):
         top[4].reshape(1, self._num_classes * 4)
 
     def forward(self, bottom, top):
+        """
         # Algorithm:
         #
         # Step. Measure GT overlap and assign proposals to gt
         # Step. Produces proposals classification labels.
         # Step. Subsample labels if we have too many
-        # Step. Produce bounding-box regression targets with label infomation
-        # Step. Resize and drop label information to get new bounding-box
-        # regression targets
+        # Step. Produce bounding-box regression targets
+        # Step. Reformat bounding-box regression targets and assign bounding-box loss weights
         # Step. Return the top blobs
 
-
+        :param bottom: rpn_rois, gt_boxes
+        :param top: refer to setup()
+        :return: none
+        """
         # Proposal ROIs (0, x1, y1, x2, y2) coming from RPN,
         # (i.e., rpn.proposal_layer.ProposalLayer), or any other source
         # The first element 0 represents the index of image batch, check source code
@@ -73,8 +76,9 @@ class ProposalTargetLayer(caffe.Layer):
         rois_per_image = cfg.TRAIN.BATCH_SIZE / num_images
         fg_rois_per_image = np.round(cfg.TRAIN.FG_FRACTION * rois_per_image)
 
-        # Sample rois with classification labels and bounding box regression
+        # ### Algorithm Core: Sample rois with classification labels and bounding box regression
         # targets
+        # print 'proposal_target_layer:', fg_rois_per_image
         labels, rois, bbox_targets, bbox_inside_weights = _sample_rois(
             all_rois, gt_boxes, fg_rois_per_image,
             rois_per_image, self._num_classes)
@@ -119,21 +123,19 @@ class ProposalTargetLayer(caffe.Layer):
 
 
 def _get_bbox_regression_labels(bbox_target_data, num_classes):
-    """Bounding-box regression targets (bbox_target_data) are stored in a
+    """
+    Reformat bounding-box regression targets and weights.
+
+    Bounding-box regression targets (bbox_target_data) are stored in a
     compact form N x (class, tx, ty, tw, th), N is number of targets
 
-    This function expands those targets into the 4-of-4*K(should be M-of-4*N,
-    M is the number of classes of all original targets)
-    (by putting target of the same class in the same row one by one, so we
-    drop the class infomation)
-    representation used
-    by the network (i.e. only one class has non-zero targets).
-
-
+    This function expands those targets into the 4-of-4*K
+    representation used by the network (i.e. only one class has non-zero targets).
+    K is the number of classes
 
     Returns:
-        bbox_target (ndarray): N x 4K(should be Mx4N) blob of regression targets
-        bbox_inside_weights (ndarray): N x 4K(should be Mx4N) blob of loss weights
+        bbox_target (ndarray): N x 4K blob of regression targets
+        bbox_inside_weights (ndarray): N x 4K blob of loss weights
     """
 
     clss = bbox_target_data[:, 0]
@@ -171,8 +173,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
-    # Step. measure GT overlap and assign proposals to gt
-    #
+    # ##### Step. Measure GT overlap and assign proposals to gt
     # overlaps: (rois, gt_boxes)
     overlaps = bbox_overlaps(
         np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
@@ -182,8 +183,8 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     max_overlaps = overlaps.max(axis=1)
     labels = gt_boxes[gt_assignment, 4]
 
-    # Step. Produces proposals classification labels.
-    # Step. Subsample labels if we have too many
+    # ##### Step. Produces proposals classification labels.
+    # ##### Step. Subsample labels if we have too many
     #
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
@@ -214,12 +215,12 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     labels[fg_rois_per_this_image:] = 0
     rois = all_rois[keep_inds]
 
-    # Step. Produce bounding-box regression targets
+    # ###### Step. Produce bounding-box regression targets
+
     bbox_target_data = _compute_targets(
         rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
 
-    # Step. Resize and drop label information to get new bounding-box
-    # regression targets
+    # ##### Step. Reformat bounding-box regression targets and assign bounding-box loss weights
     bbox_targets, bbox_inside_weights = \
         _get_bbox_regression_labels(bbox_target_data, num_classes)
 
