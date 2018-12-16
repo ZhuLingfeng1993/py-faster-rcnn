@@ -73,10 +73,15 @@ class ProposalLayer(caffe.Layer):
         nms_thresh    = cfg[cfg_key].RPN_NMS_THRESH
         min_size      = cfg[cfg_key].RPN_MIN_SIZE
 
+        # rpn_cls_prob_reshape blob:
+        # shape { dim: 0 dim: 18 dim: -1 dim: 0 } } # 2*9 bg/fg * num_anchors
+        #
         # the first set of _num_anchors channels are bg probs
         # the second set are the fg probs, which we want
         scores = bottom[0].data[:, self._num_anchors:, :, :]
+        # rpn_bbox_pred(bbox_deltas) blob: (1, 4 * A, H, W)
         bbox_deltas = bottom[1].data
+        # (1, A, H, W)
         im_info = bottom[2].data[0, :]
 
         if DEBUG:

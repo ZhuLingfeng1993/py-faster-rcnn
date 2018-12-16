@@ -95,15 +95,20 @@ class RoIDataLayer(caffe.Layer):
         idx = 0
         top[idx].reshape(cfg.TRAIN.IMS_PER_BATCH, 3,
             max(cfg.TRAIN.SCALES), cfg.TRAIN.MAX_SIZE)
+        # data blob: image data, (batch elem, channel, height, width)
         self._name_to_top_map['data'] = idx
         idx += 1
 
         if cfg.TRAIN.HAS_RPN:
             top[idx].reshape(1, 3)
+            # im_info blob: (width, height, scale)
+            # scale is the resize ratio relative to origin image,
+            # refer to prep_im_for_blob() for detail
             self._name_to_top_map['im_info'] = idx
             idx += 1
-
-            top[idx].reshape(1, 4)
+            # gt_boxes blob: (x1, y1, x2, y2, cls)
+            top[idx].reshape(1, 5)
+            # top[idx].reshape(1, 4)
             self._name_to_top_map['gt_boxes'] = idx
             idx += 1
         else: # not using RPN
@@ -141,7 +146,19 @@ class RoIDataLayer(caffe.Layer):
         assert len(top) == len(self._name_to_top_map)
 
     def forward(self, bottom, top):
-        """Get blobs and copy them into this layer's top blob vector."""
+        """
+        Get blobs and copy them into this layer's top blob vector.
+
+        for RPN
+        :param bottom: None
+        :param top:
+            data blob: image data, (batch elem, channel, height, width)
+            im_info blob: (width, height, scale)
+                scale is the resize ratio relative to origin image,
+                refer to prep_im_for_blob() for detail
+            gt_boxes blob: (x1, y1, x2, y2, cls)
+        :return: None
+        """
         blobs = self._get_next_minibatch()
 
         for blob_name, blob in blobs.iteritems():

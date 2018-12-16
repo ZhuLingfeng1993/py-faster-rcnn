@@ -236,7 +236,7 @@ class pascal_voc(imdb):
         overlaps = scipy.sparse.csr_matrix(overlaps)
 
         return {'boxes' : boxes,   # boxes of corresponding objects  in an image, size:Nx4 ,N:num_objs
-                'gt_classes': gt_classes,      # ground truth of each object, size:N
+                'gt_classes': gt_classes,      # ground truth class index of each object, size:N
                 'gt_overlaps' : overlaps,      # ?, size:NxC, C:num_classes
                 'flipped' : False,             # whether the image is flipped
                 'seg_areas' : seg_areas}       # area of box, size:N

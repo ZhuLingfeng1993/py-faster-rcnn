@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Faster R-CNN
 # Copyright (c) 2015 Microsoft
@@ -26,7 +27,9 @@ class ProposalTargetLayer(caffe.Layer):
         layer_params = yaml.load(self.param_str_)
         self._num_classes = layer_params['num_classes']
 
-        # sampled rois (0, x1, y1, x2, y2)
+        # first dim of top blobs are not certain
+        #
+        # rois blob: sampled rois (0, x1, y1, x2, y2)
         top[0].reshape(1, 5)
         # labels
         top[1].reshape(1, 1)
@@ -63,6 +66,8 @@ class ProposalTargetLayer(caffe.Layer):
         gt_boxes = bottom[1].data
 
         # Include ground-truth boxes in the set of candidate rois
+        # why? 一张图片中的gt一般远小于proposal的数目,对最终学习结果的影响不是很大,
+        # 可能是为了防止正例过少, 因为这里的正例要求是比较严格的, 加快收敛
         zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
         all_rois = np.vstack(
             (all_rois, np.hstack((zeros, gt_boxes[:, :-1])))
@@ -141,6 +146,7 @@ def _get_bbox_regression_labels(bbox_target_data, num_classes):
     clss = bbox_target_data[:, 0]
     bbox_targets = np.zeros((clss.size, 4 * num_classes), dtype=np.float32)
     bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
+    # index of fg
     inds = np.where(clss > 0)[0]
     for ind in inds:
         cls = clss[ind]
@@ -216,7 +222,6 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     rois = all_rois[keep_inds]
 
     # ###### Step. Produce bounding-box regression targets
-
     bbox_target_data = _compute_targets(
         rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
 
