@@ -13,6 +13,7 @@ from fast_rcnn.bbox_transform import bbox_transform
 from utils.cython_bbox import bbox_overlaps
 import PIL
 
+
 def prepare_roidb(imdb):
     """Enrich the imdb's roidb by adding some derived quantities that
     are useful for training. This function precomputes the maximum
@@ -42,6 +43,7 @@ def prepare_roidb(imdb):
         # max overlap > 0 => class should not be zero (must be a fg class)
         nonzero_inds = np.where(max_overlaps > 0)[0]
         assert all(max_classes[nonzero_inds] != 0)
+
 
 def add_bbox_regression_targets(roidb):
     """Add information needed to train bounding-box regressors."""
@@ -105,6 +107,7 @@ def add_bbox_regression_targets(roidb):
     # These values will be needed for making predictions
     # (the predicts will need to be unnormalized and uncentered)
     return means.ravel(), stds.ravel()
+
 
 def _compute_targets(rois, overlaps, labels):
     """Compute bounding-box regression targets for an image."""

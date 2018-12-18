@@ -30,7 +30,6 @@ def bbox_transform(ex_rois, gt_rois):
 def bbox_transform_inv(boxes, deltas):
     if boxes.shape[0] == 0:
         return np.zeros((0, deltas.shape[1]), dtype=deltas.dtype)
-
     boxes = boxes.astype(deltas.dtype, copy=False)
 
     widths = boxes[:, 2] - boxes[:, 0] + 1.0
